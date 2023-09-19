@@ -1,10 +1,16 @@
 package behaviours;
 
+import gui.BookBuyerGui;
 import jade.core.behaviours.Behaviour;
 import jade.core.AID;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.ACLMessage;
 import comprador.Comprador;
+
+import java.awt.*;
+import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 
 public class RequestPerformer extends Behaviour {
     private AID mejorVendedor;
@@ -14,10 +20,14 @@ public class RequestPerformer extends Behaviour {
     private int estado = 0;
     private Comprador agenteComprador;
     private String titulo;
+    private JTable vendedores;
+    private BookBuyerGui bBG;
 
-    public RequestPerformer(Comprador a) {
+    public RequestPerformer(Comprador a, JTable res, BookBuyerGui bBG) {
         agenteComprador = a;
         titulo = a.getTitulo();
+        vendedores = res;
+        this.bBG = bBG;
     }
 
     public void action() {
@@ -43,6 +53,7 @@ public class RequestPerformer extends Behaviour {
                 if(reply != null) {
                     if(reply.getPerformative() == ACLMessage.PROPOSE) {
                         int price = Integer.parseInt(reply.getContent());
+                        comprobarAgente(reply.getSender().getName(), price);
                         if(mejorVendedor == null || price < mejorPrecio) {
                             mejorPrecio = price;
                             mejorVendedor = reply.getSender();
@@ -76,6 +87,9 @@ public class RequestPerformer extends Behaviour {
                 reply = myAgent.receive(mt);
                 if (reply != null) {
                     if (reply.getPerformative() == ACLMessage.INFORM) {
+                        marcarComprado(reply.getSender().getName());
+                        JOptionPane.showMessageDialog(bBG, titulo +" comprado satisfactoriamente al agente "
+                                + reply.getSender().getName() + "\n Precio: " + mejorPrecio, agenteComprador.getLocalName(), JOptionPane.INFORMATION_MESSAGE);
                         System.out.println(titulo +" comprado satisfactoriamente al agente " + reply.getSender().getName());
                         System.out.println("Precio = "+ mejorPrecio);
                         myAgent.doDelete();
@@ -98,5 +112,49 @@ public class RequestPerformer extends Behaviour {
             System.out.println("Intento fallido: "+ titulo +" no disponible para venta");
         }
         return ((estado == 2 && mejorVendedor == null) || estado == 4);
+    }
+
+    public void comprobarAgente(String sender, int precio) {
+        DefaultTableModel modelo = (DefaultTableModel) vendedores.getModel();
+        Object[] nuevaFila = {sender, precio};
+        boolean filaExistente = false;
+        for (int i = 0; i < modelo.getRowCount(); i++) {
+            if (modelo.getValueAt(i, 0).equals(sender)) {
+                modelo.setValueAt(precio, i, 1);
+                filaExistente = true;
+                break;
+            }
+        }
+
+        if (!filaExistente) {
+            Object[] row = new Object[2];
+            row[0] = sender;
+            row[1] = precio;
+            ((DefaultTableModel) vendedores.getModel()).addRow(row);
+        }
+    }
+
+    public void marcarComprado(String comprado) {
+        DefaultTableModel modelo = (DefaultTableModel) vendedores.getModel();
+        int i = 0;
+        while(i < modelo.getRowCount()) {
+            if (modelo.getValueAt(i, 0).equals(comprado))
+                break;
+            i++;
+        }
+        final int x = i;
+        DefaultTableCellRenderer renderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                if (row == x)
+                    c.setBackground(Color.GREEN);
+                else
+                    c.setBackground(table.getBackground());
+                return c;
+            }
+        };
+        vendedores.setDefaultRenderer(Object.class, renderer);
+        bBG.repaint();
     }
 }

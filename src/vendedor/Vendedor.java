@@ -37,7 +37,7 @@ public class Vendedor extends Agent {
 
         addBehaviour(new OfferRequestServer(this));
 
-        addBehaviour(new PurchaseOrderServer(this));
+        addBehaviour(new PurchaseOrderServer(this, miGUI));
     }
 
     protected void takeDown() {
